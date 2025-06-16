@@ -37,10 +37,7 @@ This document tracks the development status of the GowebScraper project.
 * [ ] Logging of request status, errors, timestamps
 
 ### Deployment
-* [ ] Dockerize scraper with minimal multi-stage image
-* [ ] `docker-compose` setup for scraper + PostgreSQL
 * [ ] Add `.env` support for config (ports, DB URL)
-* [ ] CI/CD via GitHub Actions (lint, test, build)
 
 ### Bonus Goals
 * [ ] REST API (e.g., `GET /latest`, `GET /page/{hash}`)

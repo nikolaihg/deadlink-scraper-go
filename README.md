@@ -1,5 +1,5 @@
-# GowebScraper
-Simple webscraper using the [go](https://go.dev/). Developed to explore concurrency, data handling and analysis through a media-relevant use case.
+# GoWebScraper
+Simple webscraper using the [go](https://go.dev/). Developed to explore concurrency, data handling and analysis through a media-relevant use cases.
 
 This project is part of a learning journey to become proficient in **Go for backend development**, with a tech stack and architectural style inspired by modern develompent practices.
 
@@ -32,12 +32,6 @@ Knowledge from previous courses ([INFO215](https://www4.uib.no/en/studies/course
 * Implement delays and rate limiting.
 * Respect `robots.txt`.
 * Implement robust **error handling and logging**.
-
-### DevOps & Deployment
-* Containerize with Docker.
-* Use `docker-compose` for service orchestration (DB + scraper).
-* Multi-stage Docker build for lightweight image.
-* *Maybe:* Add CI/CD with GitHub Actions (testing and building).
 
 ### CLI & API
 * Create a simple CLI interface for scraper configuration or triggering.
