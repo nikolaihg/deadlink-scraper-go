@@ -1,51 +1,72 @@
-# gowebscraper
-Simple webscraper using the [go programming language](https://go.dev/).
+# GowebScraper
+Simple webscraper using the [go](https://go.dev/). Developed to explore concurrency, data handling and analysis through a media-relevant use case.
+
+This project is part of a learning journey to become proficient in **Go for backend development**, with a tech stack and architectural style inspired by modern develompent practices.
 
 ## Idea
-Make a webscraper using the go standard library (as much as possible), store the result in a database ([postgreSQL](https://www.postgresql.org/))
+Build a domain-specific web scraper that collects data such as **film listings**, **sports results**, or **podcast / music metadata**. And then stores it in a relational database. The applications is built with a strong focuse on:
+- Learning Go throug a practical problem / implementation.
+- Exploring concurrency, error handling, and database interaction.
+- Deploying services using Docker and 'docker-compose`. 
+- *Maybe* Creating a reusable and extensible backend pipeline for data scraping. 
 
-I also want the project to enable domain specific scarping to cater to relevance to media or user-facing data by choosing a domain-specific scraping target (e.g. film listings, sports results, or even podcast metadata). (How this is going to be implemented is not yet clear, maybe to predfined url-list).
+Knowledge from previous courses ([INFO215](https://www4.uib.no/en/studies/courses/info215)) and languages (Python) is leveraged—especially DOM traversal, structured data extraction, and web protocols.
 
 ## Project goals
-- Learn [go](https://go.dev/) through a project.
-- Apply webscraping + traversing DOM knowlegde from INFO212 & Python into learning golang.
-    - Using [net/http](https://pkg.go.dev/net/http) and [x/net/html](https://pkg.go.dev/golang.org/x/net/html)
-- Learn database usage in go through storing the results.
-    - Want to implement search (maybe fuzzy) from the database.
-    - CRUD via the go application.
-- Learn concurrency / threading in go (`goroutines`).
-- Error handling and logging in go.
-- Dockerize the application & server.
-- Write tests in go.
+### Data Collection
+* Scrape data from defined URLs.
+* Discover relevant URLs from `<a>`-tags.
+* Parse pages for:
+  * Title/Header
+  * Text nodes (store \~500 words of content)
+  * `<a>` links
+* Index pages with hashed URL as primary key.
+
+### Storage
+* Store structured data in a **PostgreSQL** database.
+* Implement search capabilities (exact and *maybe* fuzzy).
+* Enable CRUD operations via the Go application.
+
+### Architecture and Concurrency
+* Use **goroutines** for concurrent scraping.
+* Implement delays and rate limiting.
+* Respect `robots.txt`.
+* Implement robust **error handling and logging**.
+
+### DevOps & Deployment
+* Containerize with Docker.
+* Use `docker-compose` for service orchestration (DB + scraper).
+* Multi-stage Docker build for lightweight image.
+* *Maybe:* Add CI/CD with GitHub Actions (testing and building).
+
+### CLI & API
+* Create a simple CLI interface for scraper configuration or triggering.
+* *Bonus:* Serve a minimal REST API (e.g., `GET /latest`).
+* *Optional:* Build a frontend to view and search results.
 
 ## Progress
-- [x] Go fundamentals (Syntax, Control flow, functions, Error handling, Concurrency, Standard Library)
-- [ ] HTTP requests with `net/http`
-- [ ] Implement delays between requests
-- [ ] HTML parsing using `/x/net/html`
-- [ ] Write some tests in go
-- [ ] Concurrent data scarping using goroutines
-- [ ] Database connection / implemenation
-- [ ] Store scraped data to database
-- [ ] CLI usage of the application
-- [ ] More testing.
-- [ ] Good error handling and logging
-- [ ] Multi stage build (Dockerfile)
-- [ ] Dockercompose (database container + webscraper container)
+Progress is tracked in [`progress.md`](./progress.md).
 
-### Bonus goals:
-- Respect robots.txt
-- Implement searching (binary, fuzzy).
-- Write fronted to view and search the results.
-- CI/CD with github actions and automated testing.
+## Tech Stack
+| Area             | Tools                                          |
+| ---------------- | ---------------------------------------------- |
+| Language         | Go                                             |
+| Libraries        | `net/http`, `x/net/html`, `log`, `testing`     |
+| Database         | PostgreSQL                                     |
+| DevOps           | Docker, docker-compose, GitHub Actions         |
+| Bonus (optional) | REST API (`net/http`), React frontend, CLI     |
 
-## Tech stack
-So far only planned:
-- `Go`
-    - `net/http`
-    - `/x/net/html`
-    - `log`
-    - `testing`
-    - either `"raw SQL"` or `gorm`
-- Database: `PostgreSQL`
-- Docker: `docker-compose`
+## WebPage Object Model
+The core data structure for scraped content is the **WebPage** object, which represents a snapshot of a single parsed webpage. It includes:
+
+```go
+type WebPage struct {
+    URL         string   // The original URL
+    URLHash     string   // A hashed version of the URL (used as primary key)
+    Title       string   // Page title or main header
+    Text        string   // Up to ~500 words of main content
+    Links       []string // All discovered <a href=""> URLs
+    Timestamp   time.Time // Time of scrape
+}
+
+This structure will be used consistently in parsing logic and in the database schema.
