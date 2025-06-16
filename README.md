@@ -47,7 +47,6 @@ Progress is tracked in [`progress.md`](./progress.md).
 | Language         | Go                                             |
 | Libraries        | `net/http`, `x/net/html`, `log`, `testing`     |
 | Database         | PostgreSQL                                     |
-| DevOps           | Docker, docker-compose, GitHub Actions         |
 | Bonus (optional) | REST API (`net/http`), React frontend, CLI     |
 
 ## WebPage Object Model
