@@ -1,4 +1,4 @@
-# 🕸️ Dead Link Web Scraper (in Go)
+# Dead Link Web Scraper (in Go)
 
 A simple, recursive dead link checker written in Go.
 
@@ -6,7 +6,7 @@ This project scrapes a given URL, recursively follows internal links, and logs a
 
 > Built to practice Go through real-world scraping, concurrency, data persistence, and microservice architecture.
 
-## 🚀 Features
+## Features
 
 - Accepts a starting URL to begin scraping.
 - Recursively follows and checks links **within the same base domain**.
@@ -30,12 +30,12 @@ The project is planned to evolve in **three stages**:
 
 See [`progress.md`](./progress.md) for development breakdown.
 
-## 🧪 Example
+## Example
 
 Try scraping this test site:  
 🔗 [`https://scrape-me.dreamsofcode.io`](https://scrape-me.dreamsofcode.io)
 
-## ⚙️ How It Works
+## How It Works
 
 - Uses the standard `net/http` package for HTTP requests.
 - Parses HTML using `golang.org/x/net/html`.
@@ -43,20 +43,20 @@ Try scraping this test site:
 - Only scrapes pages within the base domain, but **does** validate external links without crawling them.
 - Designed to be simple and extensible.
 
-## 🧠 Design Considerations
+##  Design Considerations
 
-### ✅ Handled Edge Cases
+###  Handled Edge Cases
 
 - **Redirects:** Follows 3xx redirects and treats them as part of the request lifecycle.
 - **Infinite Recursion:** Keeps track of visited URLs to prevent loops.
 - **Base Domain Limiting:** Recursively scans only within the original domain; external links are checked but not scraped.
 
-### ❌ Not Yet Supported
+###  Not Yet Supported
 
 - **JavaScript-rendered sites:** These require a headless browser (e.g. Playwright for Go). Could be added as an expansion.
 - **Robots.txt or rate limiting:** Not yet respected. Use with caution on real websites.
 
-## 🧵 Potential Improvements
+##  Potential Improvements
 
 - ✅ Add concurrency with goroutines and channels for faster scanning.
 - ⏱ Timeout handling per request.
@@ -64,23 +64,16 @@ Try scraping this test site:
 - 🌐 Proxy support and user-agent randomization.
 - 🧪 Unit tests and structured logging.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - [Go](https://golang.org/)
 - [`net/http`](https://pkg.go.dev/net/http)
 - [`x/net/html`](https://pkg.go.dev/golang.org/x/net/html)
 
-## 🔁 Next Steps
+##  Next Steps
 - **[Continue to Part 2 – Persistent Dead Link Monitor](./part2.md)**
 - **[Part 3 – Scalable Media Service Architecture](./part3.md)**
 - **[`progress.md`](./progress.md) – Feature checklist and roadmap**
-
-**multi-part case study** for portfolio or CV:
-
-- **Part 1**: CLI Tool – Go concurrency, parsing, scraping
-- **Part 2**: API Backend – Database modeling, HTTP API, Docker
-- **Part 3**: Scalable Microservice – gRPC, Kafka, observability
-
 
 ## Screenshots / Example Output
 
