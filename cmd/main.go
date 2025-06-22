@@ -4,14 +4,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"strings"
 
 	"golang.org/x/net/html"
 )
 
 func main() {
-	resp, err := http.Get("http://example.com")
+	resp, err := http.Get("https://en.wikipedia.org/wiki/The_Beatles")
 	if err != nil {
 		log.Fatalf("Error fetching the URL: %v", err)
 	}
@@ -24,22 +22,19 @@ func main() {
 		log.Fatalf("Error parsing html: %v", err)
 	}
 
-	html.Render(os.Stdout, doc)
-
-	traverseHTML(doc)
+	findHref(doc)
 }
 
-func traverseHTML(node *html.Node) {
-	if node.Type == html.ElementNode {
-		fmt.Println("Tag:", node.Data)
-	}
-	if node.Type == html.TextNode {
-		if node.Data != "" {
-			fmt.Print("Text:", strings.TrimSpace(node.Data))
+func findHref(node *html.Node) {
+	if node.Type == html.ElementNode && node.Data == "a" {
+		for _, attr := range node.Attr {
+			if attr.Key == "href" {
+				fmt.Printf("Tag: <%s>, attr: %s, url: %s\n", node.Data, attr.Key, attr.Val)
+			}
 		}
 	}
 
 	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		traverseHTML(child)
+		findHref(child)
 	}
 }
