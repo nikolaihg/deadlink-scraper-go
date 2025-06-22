@@ -13,11 +13,19 @@ import (
 	"golang.org/x/net/html"
 )
 
+const (
+	RequestTimeout = 5 * time.Second
+)
+
+var httpClient = &http.Client{
+	Timeout: RequestTimeout,
+}
+
 func main() {
 	mainURL := "https://scrape-me.dreamsofcode.io/about"
 	links := make(map[string]linktype.Link)
 	myQueue := queue.New()
-	// visited := set.New()
+	//visited := set.New()
 
 	doc := fetchBase(mainURL)
 
@@ -51,10 +59,7 @@ func main() {
 }
 
 func fetch(urlStr string) (string, error) {
-	client := &http.Client{
-		Timeout: 5 * time.Second,
-	}
-	resp, err := client.Get(urlStr)
+	resp, err := httpClient.Get(urlStr)
 	if err != nil {
 		return "", fmt.Errorf("error fetching page: %w", err)
 	}
@@ -70,7 +75,7 @@ func fetchBase(urlStr string) *html.Node {
 	}
 	defer resp.Body.Close()
 
-	fmt.Println("BaseURL Response status:", resp.Status)
+	log.Println("BaseURL Response status:", resp.Status)
 
 	doc, err := html.Parse(resp.Body)
 	if err != nil {
@@ -88,8 +93,8 @@ func findLinks(node *html.Node, baseURL *url.URL, links map[string]linktype.Link
 				// add to map, avoid duplicate
 				if _, exists := links[link.URL]; !exists {
 					links[link.URL] = link
+					q.Enqueue(link)
 				}
-				q.Enqueue(link)
 			}
 		}
 	}
@@ -100,15 +105,12 @@ func findLinks(node *html.Node, baseURL *url.URL, links map[string]linktype.Link
 }
 
 func filterLink(href string, baseURL *url.URL) linktype.Link {
-	// Ignore empty
 	if href == "" {
 		return linktype.Link{}
 	}
-	// other special links
 	if strings.HasPrefix(href, "mailto:") || strings.HasPrefix(href, "tel:") || strings.HasPrefix(href, "javascript:") {
 		return linktype.Link{}
 	}
-	// find page links
 	if strings.HasPrefix(href, "#") {
 		return linktype.Link{
 			URL:  baseURL.String() + href,
@@ -118,11 +120,8 @@ func filterLink(href string, baseURL *url.URL) linktype.Link {
 
 	parsedHref, err := url.Parse(href)
 	if err != nil {
-		// If href is malformed, return as-is as external to avoid crash
-		return linktype.Link{
-			URL:  href,
-			Type: linktype.ExternalLink,
-		}
+		log.Printf("Skipping malformed URL: %s (%v)", href, err)
+		return linktype.Link{}
 	}
 
 	absURL := baseURL.ResolveReference(parsedHref)
