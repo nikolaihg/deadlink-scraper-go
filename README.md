@@ -1,6 +1,6 @@
 # Dead Link Web Scraper written in Go
 
-A recursive dead link checker written in Go.
+A dead link checker written in Go.
 
 This project scrapes a given URL, recursively follows internal links, and logs any dead links. Designed as a learning project for exploring Go's core features like concurrency, HTTP/HTML handling, and database interaction.
 

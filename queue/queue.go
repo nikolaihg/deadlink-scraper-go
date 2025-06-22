@@ -1,6 +1,10 @@
 package queue
 
-import "github.com/nikolaihg/deadlink-scraper-go/linktype"
+import (
+	"fmt"
+
+	"github.com/nikolaihg/deadlink-scraper-go/linktype"
+)
 
 type Queue struct {
 	totalQueued int
@@ -29,4 +33,11 @@ func (q *Queue) Dequeue() linktype.Link {
 
 func (q *Queue) Size() int {
 	return q.number
+}
+
+func (q *Queue) Print() {
+	fmt.Println("Queue contents:")
+	for i, link := range q.elements {
+		fmt.Printf("%d: URL: %s, Type: %d\n", i+1, link.URL, link.Type)
+	}
 }

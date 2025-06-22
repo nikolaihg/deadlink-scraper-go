@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/nikolaihg/deadlink-scraper-go/linktype"
 	"github.com/nikolaihg/deadlink-scraper-go/queue"
-	"github.com/nikolaihg/deadlink-scraper-go/set"
 	"golang.org/x/net/html"
 )
 
@@ -17,43 +17,44 @@ func main() {
 	mainURL := "https://scrape-me.dreamsofcode.io/about"
 	links := make(map[string]linktype.Link)
 	myQueue := queue.New()
-	visited := set.New()
-	fmt.Println(myQueue)
-	fmt.Println(visited)
+	// visited := set.New()
 
-	doc := fetchAndParse(mainURL)
+	doc := fetchBase(mainURL)
 
 	baseURL, err := url.Parse(mainURL)
 	if err != nil {
 		log.Fatalf("Error parsing base URL: %v", err)
 	}
 
-	findHref(doc, baseURL, links)
+	findLinks(doc, baseURL, links, myQueue)
 
-	// printLinks(links)
-
-	fmt.Printf("Starting scan of %s\n", mainURL)
+	fmt.Printf("Starting scan of %s\n\n", mainURL)
 
 	for _, link := range links {
 		switch link.Type {
-		case linktype.InternalLink:
-			fmt.Printf("Checking internal link: %s", link.URL)
-			response, err := fetch(link.URL)
+		case linktype.InternalLink, linktype.ExternalLink:
+			status, err := fetch(link.URL)
 			if err != nil {
-				fmt.Println("error fetching page: %w", err)
+				fmt.Printf("[DEAD]   %s (%v)\n", link.URL, err)
+			} else if strings.HasPrefix(status, "4") || strings.HasPrefix(status, "5") {
+				fmt.Printf("[DEAD]   %s (%s)\n", link.URL, status)
+			} else {
+				fmt.Printf("[ALIVE]  %s (%s)\n", link.URL, status)
 			}
-			fmt.Println("status", response)
-		case linktype.ExternalLink:
-			fmt.Println("Added external link to queue")
-			myQueue.Enqueue(link)
 		case linktype.PageLink:
-			fmt.Printf("Page link discovered: %s", link.URL)
+			// Optional: Skip or log
+			fmt.Printf("[SKIP]   %s (Page link)\n", link.URL)
 		}
 	}
+
+	myQueue.Print()
 }
 
 func fetch(urlStr string) (string, error) {
-	resp, err := http.Get(urlStr)
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+	resp, err := client.Get(urlStr)
 	if err != nil {
 		return "", fmt.Errorf("error fetching page: %w", err)
 	}
@@ -62,7 +63,7 @@ func fetch(urlStr string) (string, error) {
 	return resp.Status, nil
 }
 
-func fetchAndParse(urlStr string) *html.Node {
+func fetchBase(urlStr string) *html.Node {
 	resp, err := http.Get(urlStr)
 	if err != nil {
 		log.Fatalf("Error fetching page: %v", err)
@@ -79,7 +80,7 @@ func fetchAndParse(urlStr string) *html.Node {
 	return doc
 }
 
-func findHref(node *html.Node, baseURL *url.URL, links map[string]linktype.Link) {
+func findLinks(node *html.Node, baseURL *url.URL, links map[string]linktype.Link, q *queue.Queue) {
 	if node.Type == html.ElementNode && node.Data == "a" {
 		for _, attr := range node.Attr {
 			if attr.Key == "href" {
@@ -88,18 +89,23 @@ func findHref(node *html.Node, baseURL *url.URL, links map[string]linktype.Link)
 				if _, exists := links[link.URL]; !exists {
 					links[link.URL] = link
 				}
+				q.Enqueue(link)
 			}
 		}
 	}
 
 	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		findHref(child, baseURL, links)
+		findLinks(child, baseURL, links, q)
 	}
 }
 
 func filterLink(href string, baseURL *url.URL) linktype.Link {
 	// Ignore empty
 	if href == "" {
+		return linktype.Link{}
+	}
+	// other special links
+	if strings.HasPrefix(href, "mailto:") || strings.HasPrefix(href, "tel:") || strings.HasPrefix(href, "javascript:") {
 		return linktype.Link{}
 	}
 	// find page links
@@ -132,46 +138,4 @@ func filterLink(href string, baseURL *url.URL) linktype.Link {
 		URL:  absURL.String(),
 		Type: linkType,
 	}
-}
-
-func printLinks(links map[string]linktype.Link) {
-	internal := []linktype.Link{}
-	external := []linktype.Link{}
-	page := []linktype.Link{}
-
-	for _, link := range links {
-		switch link.Type {
-		case linktype.InternalLink:
-			internal = append(internal, link)
-		case linktype.ExternalLink:
-			external = append(external, link)
-		case linktype.PageLink:
-			page = append(page, link)
-		}
-	}
-
-	counts := [3]int{}
-	for _, link := range links {
-		counts[link.Type]++
-	}
-
-	fmt.Println("\n======= Internal Links =======")
-	for _, link := range internal {
-		fmt.Println(link.URL)
-	}
-
-	fmt.Println("\n======= External Links =======")
-	for _, link := range external {
-		fmt.Println(link.URL)
-	}
-
-	fmt.Println("\n======= Page Links =======")
-	for _, link := range page {
-		fmt.Println(link.URL)
-	}
-
-	fmt.Println("\n======= Link Counts =======")
-	fmt.Printf("Internal: %d\n", counts[linktype.InternalLink])
-	fmt.Printf("External: %d\n", counts[linktype.ExternalLink])
-	fmt.Printf("Page:     %d\n", counts[linktype.PageLink])
 }
