@@ -1,10 +1,15 @@
-# Dead Link Web Scraper (in Go)
+# Dead Link Web Scraper written in Go
 
-A simple, recursive dead link checker written in Go.
+A recursive dead link checker written in Go.
 
 This project scrapes a given URL, recursively follows internal links, and logs any dead links. Designed as a learning project for exploring Go's core features like concurrency, HTTP/HTML handling, and database interaction.
 
 > Built to practice Go through real-world scraping, concurrency, data persistence, and microservice architecture.
+
+A real world scenario where this application could be used is for quality control for onlne newspapers, forums or media houses, where high content quality is essential. 
+One critical component of user experience is ensuring that internal and external links remain functional across the site and app. Dead or broken links impact both SEO and audience trust.
+
+This part transforms the simple dead link checker into a **scalable, observable microservice** – suitable for integration with a media monitoring platform or editorial workflow. Which part 2 and 3 of this project will enable.
 
 ## Features
 
@@ -17,6 +22,7 @@ This project scrapes a given URL, recursively follows internal links, and logs a
 - Skips already visited URLs to prevent reprocessing.
 - Handles redirects properly (3xx responses).
 - Avoids infinite recursion or loops.
+- Concurrency with goroutines and channels for faster scanning.
 
 ### Project Overview
 The project is planned to evolve in **three stages**:
@@ -29,11 +35,6 @@ The project is planned to evolve in **three stages**:
   - Queue-based job processing, gRPC, observability and async architecture
 
 See [`progress.md`](./progress.md) for development breakdown.
-
-## Example
-
-Try scraping this test site:  
-🔗 [`https://scrape-me.dreamsofcode.io`](https://scrape-me.dreamsofcode.io)
 
 ## How It Works
 
@@ -54,25 +55,19 @@ Try scraping this test site:
 ###  Not Yet Supported
 
 - **JavaScript-rendered sites:** These require a headless browser (e.g. Playwright for Go). Could be added as an expansion.
-- **Robots.txt or rate limiting:** Not yet respected. Use with caution on real websites.
+- **Robots.txt** Not yet respected. Use with caution on real websites.
 
 ##  Potential Improvements
-
-- ✅ Add concurrency with goroutines and channels for faster scanning.
-- ⏱ Timeout handling per request.
-- 📄 Save results to a file (e.g. JSON or CSV).
-- 🌐 Proxy support and user-agent randomization.
 - 🧪 Unit tests and structured logging.
 
 ## Tech Stack
 
 - [Go](https://golang.org/)
-- [`net/http`](https://pkg.go.dev/net/http)
 - [`x/net/html`](https://pkg.go.dev/golang.org/x/net/html)
 
 ##  Next Steps
 - **[Continue to Part 2 – Persistent Dead Link Monitor](./part2.md)**
-- **[Part 3 – Scalable Media Service Architecture](./part3.md)**
+- **[Skip to Part 3 – Scalable Media Service Architecture](./part3.md)**
 - **[`progress.md`](./progress.md) – Feature checklist and roadmap**
 
 ## Screenshots / Example Output
@@ -86,3 +81,7 @@ $ go run cmd/main.go https://example.com
 
 Scan complete. 13 OK, 2 Dead Links.
 ```
+
+Try scraping this test site:  
+🔗 [`https://scrape-me.dreamsofcode.io`](https://scrape-me.dreamsofcode.io)
+

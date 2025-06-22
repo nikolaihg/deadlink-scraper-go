@@ -84,5 +84,5 @@ Tools:
 * Rate limiting via Redis
 * Screenshot capture of broken pages (headless Chrome)
 
-Back to [Part 2 – Persistent Backend](./part2.md)
-Or the [README](./README.md)
+Back to [Part 2 – Persistent Backend](./part2.md).  
+Or go to the [README](./README.md).  

@@ -7,10 +7,11 @@ Tracks the development progress of the Dead Link Web Scraper project. Divided in
 Minimal tool to detect dead (4xx/5xx) or timeout links via recursive crawling.
 
 ### Core Scraper Logic
-- [ ] Accept single URL input
-- [ ] Fetch HTML content using `net/http`
-- [ ] Parse links with `x/net/html`
-- [ ] Filter internal vs external links
+- [X] Accept single URL input
+- [X] Fetch HTML content using `net/http`
+- [X] Parse links with `x/net/html`
+- [x] Filter internal vs external links
+- [x] Filter page navigation links (if href == "#")
 - [ ] Track visited links to avoid loops
 - [ ] Recursively crawl internal links
 - [ ] Identify and log:

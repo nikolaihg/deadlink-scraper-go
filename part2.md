@@ -69,4 +69,5 @@ curl localhost:8080/results
 * `Docker Compose` for orchestration
 * `UUID` + timestamps for good audit practice
 
-➡️ Ready to go deeper? Check out [Part 3 – Scalable Media Microservice](./part3.md)
+Ready to go deeper? Check out [Part 3 – Scalable Media Microservice](./part3.md).  
+Or return to [README](./README.md).  
