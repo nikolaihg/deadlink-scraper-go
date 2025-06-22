@@ -1,4 +1,4 @@
-module github.com/nikolaihg/gowebscraper
+module github.com/nikolaihg/deadlink-scraper-go
 
 go 1.24.4
 

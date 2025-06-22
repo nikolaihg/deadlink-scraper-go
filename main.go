@@ -7,24 +7,12 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/nikolaihg/deadlink-scraper-go/linktype"
 	"golang.org/x/net/html"
 )
 
-type LinkType int
-
-const (
-	InternalLink LinkType = iota
-	ExternalLink
-	PageLink
-)
-
-type Link struct {
-	URL  string
-	Type LinkType
-}
-
 func main() {
-	mainURL := "https://simple.wikipedia.org/wiki/The_Beatles"
+	mainURL := "https://scrape-me.dreamsofcode.io/about"
 
 	doc := fetchAndParse(mainURL)
 
@@ -33,7 +21,7 @@ func main() {
 		log.Fatalf("Error parsing base URL: %v", err)
 	}
 
-	links := make(map[string]Link)
+	links := make(map[string]linktype.Link)
 	findHref(doc, baseURL, links)
 
 	printLinks(links)
@@ -46,7 +34,7 @@ func fetchAndParse(urlStr string) *html.Node {
 	}
 	defer resp.Body.Close()
 
-	fmt.Println("Response status:", resp.Status)
+	fmt.Println("BaseURL Response status:", resp.Status)
 
 	doc, err := html.Parse(resp.Body)
 	if err != nil {
@@ -56,7 +44,7 @@ func fetchAndParse(urlStr string) *html.Node {
 	return doc
 }
 
-func findHref(node *html.Node, baseURL *url.URL, links map[string]Link) {
+func findHref(node *html.Node, baseURL *url.URL, links map[string]linktype.Link) {
 	if node.Type == html.ElementNode && node.Data == "a" {
 		for _, attr := range node.Attr {
 			if attr.Key == "href" {
@@ -74,54 +62,55 @@ func findHref(node *html.Node, baseURL *url.URL, links map[string]Link) {
 	}
 }
 
-func filterLink(href string, baseURL *url.URL) Link {
+func filterLink(href string, baseURL *url.URL) linktype.Link {
 	// Ignore empty
 	if href == "" {
-		return Link{}
+		return linktype.Link{}
 	}
+	// find page links
 	if strings.HasPrefix(href, "#") {
-		return Link{
+		return linktype.Link{
 			URL:  baseURL.String() + href,
-			Type: PageLink,
+			Type: linktype.PageLink,
 		}
 	}
 
 	parsedHref, err := url.Parse(href)
 	if err != nil {
 		// If href is malformed, return as-is as external to avoid crash
-		return Link{
+		return linktype.Link{
 			URL:  href,
-			Type: ExternalLink,
+			Type: linktype.ExternalLink,
 		}
 	}
 
 	absURL := baseURL.ResolveReference(parsedHref)
 
-	var linkType LinkType
+	var linkType linktype.LinkType
 	if absURL.Host == baseURL.Host {
-		linkType = InternalLink
+		linkType = linktype.InternalLink
 	} else {
-		linkType = ExternalLink
+		linkType = linktype.ExternalLink
 	}
 
-	return Link{
+	return linktype.Link{
 		URL:  absURL.String(),
 		Type: linkType,
 	}
 }
 
-func printLinks(links map[string]Link) {
-	internal := []Link{}
-	external := []Link{}
-	page := []Link{}
+func printLinks(links map[string]linktype.Link) {
+	internal := []linktype.Link{}
+	external := []linktype.Link{}
+	page := []linktype.Link{}
 
 	for _, link := range links {
 		switch link.Type {
-		case InternalLink:
+		case linktype.InternalLink:
 			internal = append(internal, link)
-		case ExternalLink:
+		case linktype.ExternalLink:
 			external = append(external, link)
-		case PageLink:
+		case linktype.PageLink:
 			page = append(page, link)
 		}
 	}
@@ -147,7 +136,7 @@ func printLinks(links map[string]Link) {
 	}
 
 	fmt.Println("\n======= Link Counts =======")
-	fmt.Printf("Internal: %d\n", counts[InternalLink])
-	fmt.Printf("External: %d\n", counts[ExternalLink])
-	fmt.Printf("Page:     %d\n", counts[PageLink])
+	fmt.Printf("Internal: %d\n", counts[linktype.InternalLink])
+	fmt.Printf("External: %d\n", counts[linktype.ExternalLink])
+	fmt.Printf("Page:     %d\n", counts[linktype.PageLink])
 }
