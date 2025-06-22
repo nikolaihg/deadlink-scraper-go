@@ -8,11 +8,18 @@ import (
 	"strings"
 
 	"github.com/nikolaihg/deadlink-scraper-go/linktype"
+	"github.com/nikolaihg/deadlink-scraper-go/queue"
+	"github.com/nikolaihg/deadlink-scraper-go/set"
 	"golang.org/x/net/html"
 )
 
 func main() {
 	mainURL := "https://scrape-me.dreamsofcode.io/about"
+	links := make(map[string]linktype.Link)
+	myQueue := queue.New()
+	visited := set.New()
+	fmt.Println(myQueue)
+	fmt.Println(visited)
 
 	doc := fetchAndParse(mainURL)
 
@@ -21,10 +28,38 @@ func main() {
 		log.Fatalf("Error parsing base URL: %v", err)
 	}
 
-	links := make(map[string]linktype.Link)
 	findHref(doc, baseURL, links)
 
-	printLinks(links)
+	// printLinks(links)
+
+	fmt.Printf("Starting scan of %s\n", mainURL)
+
+	for _, link := range links {
+		switch link.Type {
+		case linktype.InternalLink:
+			fmt.Printf("Checking internal link: %s", link.URL)
+			response, err := fetch(link.URL)
+			if err != nil {
+				fmt.Println("error fetching page: %w", err)
+			}
+			fmt.Println("status", response)
+		case linktype.ExternalLink:
+			fmt.Println("Added external link to queue")
+			myQueue.Enqueue(link)
+		case linktype.PageLink:
+			fmt.Printf("Page link discovered: %s", link.URL)
+		}
+	}
+}
+
+func fetch(urlStr string) (string, error) {
+	resp, err := http.Get(urlStr)
+	if err != nil {
+		return "", fmt.Errorf("error fetching page: %w", err)
+	}
+	defer resp.Body.Close()
+
+	return resp.Status, nil
 }
 
 func fetchAndParse(urlStr string) *html.Node {

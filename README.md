@@ -6,10 +6,10 @@ This project scrapes a given URL, recursively follows internal links, and logs a
 
 > Built to practice Go through real-world scraping, concurrency, data persistence, and microservice architecture.
 
-A real world scenario where this application could be used is for quality control for onlne newspapers, forums or media houses, where high content quality is essential. 
+A real world scenario where this application could be used is for quality control for online newspapers, forums or media houses, where high content quality is essential. 
 One critical component of user experience is ensuring that internal and external links remain functional across the site and app. Dead or broken links impact both SEO and audience trust.
 
-This part transforms the simple dead link checker into a **scalable, observable microservice** – suitable for integration with a media monitoring platform or editorial workflow. Which part 2 and 3 of this project will enable.
+The second / third part of this project transforms the simple dead link checker into a **scalable, observable microservice** – suitable for integration with a media monitoring platform or editorial workflow.
 
 ## Features
 
