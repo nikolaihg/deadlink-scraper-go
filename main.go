@@ -35,24 +35,19 @@ type LinkStats struct {
 }
 
 func main() {
-
-	if len(os.Args) < 2 {
-		log.Fatalf("Malformed usage, to few or two many arguments!")
+	mainURL := parseFromArgs()
+	baseURL, err := url.Parse(mainURL)
+	if err != nil {
+		log.Fatalf("Error parsing base URL: %v", err)
 	}
-	mainURL := os.Args[1]
 
 	visited := set.New()
 	myQueue := queue.New()
 	stats := &LinkStats{ByStatusCode: make(map[string]int)}
 
-	doc, err := fetchBase(mainURL)
+	doc, err := fetchHTML(mainURL)
 	if err != nil {
 		log.Fatalf("Failed to load base page: %v", err)
-	}
-
-	baseURL, err := url.Parse(mainURL)
-	if err != nil {
-		log.Fatalf("Error parsing base URL: %v", err)
 	}
 
 	log.Printf("Scanning base page: %s\n", mainURL)
@@ -81,6 +76,13 @@ func main() {
 	log.Printf("Links visisted: %v\n", visited.Values())
 }
 
+func parseFromArgs() string {
+	if len(os.Args) < 2 {
+		log.Fatalf("Malformed usage, to few or two many arguments!")
+	}
+	return os.Args[1]
+}
+
 func validateLink(link linktype.Link, stats *LinkStats) {
 	stats.Total++
 
@@ -99,7 +101,7 @@ func validateLink(link linktype.Link, stats *LinkStats) {
 		return
 	}
 
-	status, statusCode, err := fetch(link.URL)
+	status, statusCode, err := fetchStatus(link.URL)
 	if err != nil {
 		stats.Dead++
 		log.Printf("[DEAD]   %s (%v)", link.URL, err)
@@ -118,7 +120,7 @@ func validateLink(link linktype.Link, stats *LinkStats) {
 	}
 }
 
-func fetch(urlStr string) (string, int, error) {
+func fetchStatus(urlStr string) (string, int, error) {
 	resp, err := httpClient.Get(urlStr)
 	if err != nil {
 		return "", resp.StatusCode, fmt.Errorf("error fetching page: %w", err)
@@ -127,7 +129,7 @@ func fetch(urlStr string) (string, int, error) {
 	return resp.Status, resp.StatusCode, nil
 }
 
-func fetchBase(urlStr string) (*html.Node, error) {
+func fetchHTML(urlStr string) (*html.Node, error) {
 	resp, err := httpClient.Get(urlStr)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching page: %w", err)

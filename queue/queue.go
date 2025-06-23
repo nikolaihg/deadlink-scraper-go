@@ -36,6 +36,10 @@ func (q *Queue) Size() int {
 	return q.number
 }
 
+func (q *Queue) IsEmpty() bool {
+	return q.Size() == 0
+}
+
 func (q *Queue) Print() {
 	fmt.Println(q.String())
 }
