@@ -27,7 +27,7 @@ Minimal tool to detect dead (4xx/5xx) or timeout links via recursive crawling.
   - [ ] Redirect chains
 
 ### CLI Tooling & UX
-- [x] Simple CLI interface (e.g., `go run main.go https://example.com`)
+- [x] Simple CLI interface (e.g., `go run .\main.go https://example.com`)
 - [ ] Option to set crawl depth
 - [ ] Flag for verbosity/debug output
 
