@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,7 +35,11 @@ type LinkStats struct {
 }
 
 func main() {
-	mainURL := "https://scrape-me.dreamsofcode.io/locations"
+
+	if len(os.Args) < 2 {
+		log.Fatalf("Malformed usage, to few or two many arguments!")
+	}
+	mainURL := os.Args[1]
 
 	visited := set.New()
 	myQueue := queue.New()
@@ -49,10 +55,15 @@ func main() {
 		log.Fatalf("Error parsing base URL: %v", err)
 	}
 
-	fmt.Printf("Scanning base page: %s\n", mainURL)
+	log.Printf("Scanning base page: %s\n", mainURL)
 	links := findLinks(doc, baseURL)
+	for _, link := range links {
+		if link.Type == linktype.InternalLink {
+			myQueue.Enqueue(link)
+		}
+	}
 
-	fmt.Println("\nStarting validations: ")
+	log.Printf("Starting validations:\n")
 	for _, link := range links {
 		if visited.Contains(link) {
 			continue
@@ -62,10 +73,12 @@ func main() {
 		validateLink(link, stats)
 	}
 
-	fmt.Println("\nPages added to queue: ")
-	myQueue.Print()
-
 	printStats(*stats)
+
+	log.Printf("Pages added to queue:\n")
+	log.Print(myQueue.String())
+
+	log.Printf("Links visisted: %v\n", visited.Values())
 }
 
 func validateLink(link linktype.Link, stats *LinkStats) {
@@ -74,7 +87,7 @@ func validateLink(link linktype.Link, stats *LinkStats) {
 	switch link.Type {
 	case linktype.PageLink:
 		stats.Skipped++
-		fmt.Printf("[SKIP]   %s (Page link)\n", link.URL)
+		log.Printf("[SKIP]   %s (Page link)", link.URL)
 		return
 	case linktype.InternalLink:
 		stats.Internal++
@@ -82,36 +95,36 @@ func validateLink(link linktype.Link, stats *LinkStats) {
 		stats.External++
 	default:
 		stats.Skipped++
-		fmt.Printf("[SKIP]   %s (Unknown type)\n", link.URL)
+		log.Printf("[SKIP]   %s (Unknown type)", link.URL)
 		return
 	}
 
-	status, err := fetch(link.URL)
+	status, statusCode, err := fetch(link.URL)
 	if err != nil {
 		stats.Dead++
-		fmt.Printf("[DEAD]   %s (%v)\n", link.URL, err)
+		log.Printf("[DEAD]   %s (%v)", link.URL, err)
 		return
 	}
 
-	statusCode := strings.Split(status, " ")[0]
-	stats.ByStatusCode[statusCode]++
+	codeStr := strconv.Itoa(statusCode)
+	stats.ByStatusCode[codeStr]++
 
-	if strings.HasPrefix(statusCode, "4") || strings.HasPrefix(statusCode, "5") {
+	if statusCode >= 400 {
 		stats.Dead++
-		fmt.Printf("[DEAD]   %s (%s)\n", link.URL, status)
+		log.Printf("[DEAD]   %s (%s)", link.URL, status)
 	} else {
 		stats.Alive++
-		fmt.Printf("[ALIVE]  %s (%s)\n", link.URL, status)
+		log.Printf("[ALIVE]  %s (%s)", link.URL, status)
 	}
 }
 
-func fetch(urlStr string) (string, error) {
+func fetch(urlStr string) (string, int, error) {
 	resp, err := httpClient.Get(urlStr)
 	if err != nil {
-		return "", fmt.Errorf("error fetching page: %w", err)
+		return "", resp.StatusCode, fmt.Errorf("error fetching page: %w", err)
 	}
 	defer resp.Body.Close()
-	return resp.Status, nil
+	return resp.Status, resp.StatusCode, nil
 }
 
 func fetchBase(urlStr string) (*html.Node, error) {
@@ -199,15 +212,15 @@ func filterLink(href string, baseURL *url.URL) linktype.Link {
 }
 
 func printStats(stats LinkStats) {
-	fmt.Println("\nScan complete:")
-	fmt.Printf("Total:    %d\n", stats.Total)
-	fmt.Printf("Internal: %d\n", stats.Internal)
-	fmt.Printf("External: %d\n", stats.External)
-	fmt.Printf("Alive:    %d\n", stats.Alive)
-	fmt.Printf("Dead:     %d\n", stats.Dead)
-	fmt.Printf("Skipped:  %d\n", stats.Skipped)
-	fmt.Println("Status codes breakdown:")
+	log.Println("Scan complete:")
+	log.Printf("Total:    %d\n", stats.Total)
+	log.Printf("Internal: %d\n", stats.Internal)
+	log.Printf("External: %d\n", stats.External)
+	log.Printf("Alive:    %d\n", stats.Alive)
+	log.Printf("Dead:     %d\n", stats.Dead)
+	log.Printf("Skipped:  %d\n", stats.Skipped)
+	log.Println("Status codes breakdown:")
 	for code, count := range stats.ByStatusCode {
-		fmt.Printf("  %s: %d\n", code, count)
+		log.Printf("  %s: %d\n", code, count)
 	}
 }

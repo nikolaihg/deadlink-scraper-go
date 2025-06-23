@@ -14,7 +14,8 @@ The second / third part of this project transforms the simple dead link checker 
 ## Features
 
 - Accepts a starting URL to begin scraping.
-- Recursively follows and checks links **within the same base domain**.
+- Recursively follows only internal pages (same base domain).
+- Checks all links found on internal pages, including external ones.
 - Detects dead links:
   - Links that return 4xx or 5xx HTTP status codes.
   - Links that timeout.
@@ -23,8 +24,23 @@ The second / third part of this project transforms the simple dead link checker 
 - Handles redirects properly (3xx responses).
 - Avoids infinite recursion or loops.
 - Concurrency with goroutines and channels for faster scanning.
+- Designed to be simple and extensible.
 
-### Project Overview
+## How It Works
+
+- Uses the standard `net/http` package for HTTP requests.
+- Parses HTML using `golang.org/x/net/html`.
+- Maintains a set of visited URLs to avoid rechecking.
+- Crawls and extracts links only from pages within the base domain (internal links).
+- External links found on internal pages are validated, but not followed or scraped.
+
+## Crawling Rules
+
+- Internal pages (same hostname) are recursively followed and scraped.
+- All links (internal or external) found on internal pages are validated.
+- External pages are **not crawled** or scraped — only validated if linked.
+
+## Project Overview
 The project is planned to evolve in **three stages**:
 
 - Part 1: CLI Link Scanner
@@ -35,14 +51,6 @@ The project is planned to evolve in **three stages**:
   - Queue-based job processing, gRPC, observability and async architecture
 
 See [`progress.md`](./progress.md) for development breakdown.
-
-## How It Works
-
-- Uses the standard `net/http` package for HTTP requests.
-- Parses HTML using `golang.org/x/net/html`.
-- Maintains a set of visited URLs to avoid rechecking.
-- Only scrapes pages within the base domain, but **does** validate external links without crawling them.
-- Designed to be simple and extensible.
 
 ##  Design Considerations
 

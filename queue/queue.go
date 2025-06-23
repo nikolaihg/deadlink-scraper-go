@@ -2,6 +2,7 @@ package queue
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/nikolaihg/deadlink-scraper-go/linktype"
 )
@@ -36,8 +37,14 @@ func (q *Queue) Size() int {
 }
 
 func (q *Queue) Print() {
-	fmt.Println("Queue contents:")
+	fmt.Println(q.String())
+}
+
+func (q *Queue) String() string {
+	var sb strings.Builder
+	sb.WriteString("Queue contents:\n")
 	for i, link := range q.elements {
-		fmt.Printf("%d: URL: %s, Type: %d\n", i+1, link.URL, link.Type)
+		sb.WriteString(fmt.Sprintf("%d: URL: %s, Type: %d\n", i+1, link.URL, link.Type))
 	}
+	return sb.String()
 }
