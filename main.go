@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"log"
 	"net/http"
 	"net/url"
@@ -16,14 +16,6 @@ import (
 	"golang.org/x/net/html"
 )
 
-const (
-	RequestTimeout = 5 * time.Second
-)
-
-var httpClient = &http.Client{
-	Timeout: RequestTimeout,
-}
-
 type LinkStats struct {
 	Total        int
 	Internal     int
@@ -34,53 +26,117 @@ type LinkStats struct {
 	ByStatusCode map[string]int
 }
 
+const (
+	RequestTimeout = 10 * time.Second
+)
+
 func main() {
-	mainURL := parseFromArgs()
-	baseURL, err := url.Parse(mainURL)
+	if len(os.Args) < 2 {
+		log.Fatalf("Malformed usage, to few or two many arguments!\n\n Usage: go run .\\main.go https://example.com")
+	}
+	startURL := os.Args[1]
+
+	// Parse starting url
+	u, err := url.Parse(startURL)
 	if err != nil {
 		log.Fatalf("Error parsing base URL: %v", err)
 	}
+	if u.Scheme == "" {
+		u.Scheme = "https"
+	}
 
+	baseDomain := u.Host
+	startURL = u.String()
+
+	// Create http client
+	client := &http.Client{
+		Timeout: RequestTimeout,
+	}
+
+	// Initialize data structures
+	toCrawl := queue.New()
 	visited := set.New()
-	myQueue := queue.New()
+	checked := set.New()
 	stats := &LinkStats{ByStatusCode: make(map[string]int)}
 
-	doc, err := fetchHTML(mainURL)
-	if err != nil {
-		log.Fatalf("Failed to load base page: %v", err)
+	// Enqueue start link
+	startLink := linktype.Link{
+		URL:  startURL,
+		Type: linktype.InternalLink,
 	}
+	toCrawl.Enqueue(startLink)
+	visited.Add(startLink)
 
-	log.Printf("Scanning base page: %s\n", mainURL)
-	links := findLinks(doc, baseURL)
-	for _, link := range links {
-		if link.Type == linktype.InternalLink {
-			myQueue.Enqueue(link)
-		}
-	}
-
-	log.Printf("Starting validations:\n")
-	for _, link := range links {
-		if visited.Contains(link) {
-			continue
-		}
-		visited.Add(link)
-
-		validateLink(link, stats)
+	// Start crawling
+	for !toCrawl.IsEmpty() {
+		currentLink := toCrawl.Dequeue()
+		crawl(client, currentLink, baseDomain, visited, checked, toCrawl, stats)
 	}
 
 	printStats(*stats)
-
-	log.Printf("Pages added to queue:\n")
-	log.Print(myQueue.String())
-
 	log.Printf("Links visisted: %v\n", visited.Values())
 }
 
-func parseFromArgs() string {
-	if len(os.Args) < 2 {
-		log.Fatalf("Malformed usage, to few or two many arguments!")
+func printStats(stats LinkStats) {
+	log.Println("Scan complete:")
+	log.Printf("Total:    %d\n", stats.Total)
+	log.Printf("Internal: %d\n", stats.Internal)
+	log.Printf("External: %d\n", stats.External)
+	log.Printf("Alive:    %d\n", stats.Alive)
+	log.Printf("Dead:     %d\n", stats.Dead)
+	log.Printf("Skipped:  %d\n", stats.Skipped)
+	log.Println("Status codes distribution:")
+	for code, count := range stats.ByStatusCode {
+		log.Printf("  %s: %d\n", code, count)
 	}
-	return os.Args[1]
+}
+
+func crawl(client *http.Client, link linktype.Link, baseDomain string, visited *set.Set, checked *set.Set, q *queue.Queue, stats *LinkStats) {
+	currentURL := link.URL
+	validateLink(link, stats)
+	log.Printf("[Crawling]: %s\n", currentURL)
+
+	if link.Type != linktype.InternalLink {
+		return
+	}
+
+	// Fetch page
+	resp, err := client.Get(currentURL)
+	if err != nil {
+		log.Printf("Error fetching %s: %v", currentURL, err)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Process only HTML pages
+	contentType := resp.Header.Get("Content-Type")
+	if !strings.Contains(contentType, "text/html") {
+		return
+	}
+
+	root, err := html.Parse(resp.Body)
+	if err != nil {
+		log.Printf("Error parsing HTML: %v", err)
+		return
+	}
+	baseURL := resp.Request.URL
+	linksMap := extractLinks(root, baseURL)
+
+	// Process all links found on page
+	for _, newLink := range linksMap {
+		switch newLink.Type {
+		case linktype.InternalLink, linktype.PageLink:
+			if !visited.Contains(newLink) {
+				visited.Add(newLink)
+				q.Enqueue(newLink)
+			}
+		case linktype.ExternalLink:
+			if !checked.Contains(newLink) {
+				checked.Add(newLink)
+				validateLink(newLink, stats)
+			}
+		}
+	}
 }
 
 func validateLink(link linktype.Link, stats *LinkStats) {
@@ -120,52 +176,43 @@ func validateLink(link linktype.Link, stats *LinkStats) {
 	}
 }
 
-func fetchStatus(urlStr string) (string, int, error) {
-	resp, err := httpClient.Get(urlStr)
+func normalizeURL(base *url.URL, raw string) (string, error) {
+	u, err := base.Parse(raw)
 	if err != nil {
-		return "", resp.StatusCode, fmt.Errorf("error fetching page: %w", err)
+		return "", err
 	}
-	defer resp.Body.Close()
-	return resp.Status, resp.StatusCode, nil
+	u.Fragment = ""
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return "", errors.New("unsupported scheme")
+	}
+	return u.String(), nil
 }
 
-func fetchHTML(urlStr string) (*html.Node, error) {
-	resp, err := httpClient.Get(urlStr)
-	if err != nil {
-		return nil, fmt.Errorf("error fetching page: %w", err)
-	}
-	defer resp.Body.Close()
-
-	log.Println("BaseURL Response status:", resp.Status)
-
-	doc, err := html.Parse(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing html: %w", err)
-	}
-
-	return doc, nil
-}
-
-func findLinks(node *html.Node, baseURL *url.URL) map[string]linktype.Link {
+func extractLinks(node *html.Node, baseURL *url.URL) map[string]linktype.Link {
 	links := make(map[string]linktype.Link)
 
 	var traverse func(*html.Node)
 	traverse = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "a" {
-			for _, attr := range n.Attr {
-				if attr.Key != "href" {
-					continue
-				}
+		if n.Type == html.ElementNode {
+			var attr string
+			switch n.Data {
+			case "a", "link":
+				attr = "href"
+			case "img", "script", "iframe":
+				attr = "src"
+			}
 
-				link := filterLink(attr.Val, baseURL)
-				if link.URL == "" {
-					continue
+			if attr != "" {
+				for _, a := range n.Attr {
+					if a.Key == attr {
+						link := filterLink(a.Val, baseURL)
+						if link.URL != "" {
+							if _, exists := links[link.URL]; !exists {
+								links[link.URL] = link
+							}
+						}
+					}
 				}
-				if _, exists := links[link.URL]; exists {
-					continue
-				}
-
-				links[link.URL] = link
 			}
 		}
 
@@ -182,9 +229,16 @@ func filterLink(href string, baseURL *url.URL) linktype.Link {
 	if href == "" {
 		return linktype.Link{}
 	}
-	if strings.HasPrefix(href, "mailto:") || strings.HasPrefix(href, "tel:") || strings.HasPrefix(href, "javascript:") {
+
+	// Skip non-HTTP links
+	if strings.HasPrefix(href, "mailto:") ||
+		strings.HasPrefix(href, "tel:") ||
+		strings.HasPrefix(href, "javascript:") ||
+		strings.HasPrefix(href, "ftp:") {
 		return linktype.Link{}
 	}
+
+	// Handle page links
 	if strings.HasPrefix(href, "#") {
 		return linktype.Link{
 			URL:  baseURL.String() + href,
@@ -192,37 +246,43 @@ func filterLink(href string, baseURL *url.URL) linktype.Link {
 		}
 	}
 
-	parsedHref, err := url.Parse(href)
+	normalized, err := normalizeURL(baseURL, href)
 	if err != nil {
-		log.Printf("Skipping malformed URL: %s (%v)", href, err)
+		log.Printf("Skipping invalid URL: %s (%v)", href, err)
 		return linktype.Link{}
 	}
 
-	absURL := baseURL.ResolveReference(parsedHref)
-
 	var linkType linktype.LinkType
-	if absURL.Host == baseURL.Host {
+	parsed, _ := url.Parse(normalized)
+	if parsed.Host == baseURL.Host {
 		linkType = linktype.InternalLink
 	} else {
 		linkType = linktype.ExternalLink
 	}
 
 	return linktype.Link{
-		URL:  absURL.String(),
+		URL:  normalized,
 		Type: linkType,
 	}
 }
 
-func printStats(stats LinkStats) {
-	log.Println("Scan complete:")
-	log.Printf("Total:    %d\n", stats.Total)
-	log.Printf("Internal: %d\n", stats.Internal)
-	log.Printf("External: %d\n", stats.External)
-	log.Printf("Alive:    %d\n", stats.Alive)
-	log.Printf("Dead:     %d\n", stats.Dead)
-	log.Printf("Skipped:  %d\n", stats.Skipped)
-	log.Println("Status codes breakdown:")
-	for code, count := range stats.ByStatusCode {
-		log.Printf("  %s: %d\n", code, count)
+func fetchStatus(url string) (string, int, error) {
+	client := &http.Client{
+		Timeout: 15 * time.Second,
 	}
+
+	// Try HEAD request first, because it is faster
+	resp, err := client.Head(url)
+	if err == nil {
+		defer resp.Body.Close()
+		return resp.Status, resp.StatusCode, nil
+	}
+
+	// Fallback to GET if HEAD fails
+	resp, err = client.Get(url)
+	if err != nil {
+		return "", 0, err
+	}
+	defer resp.Body.Close()
+	return resp.Status, resp.StatusCode, nil
 }
