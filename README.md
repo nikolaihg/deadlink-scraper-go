@@ -63,7 +63,7 @@ The project is planned to evolve in **three stages**:
 - [Part 2: Storage and Persistent REST API endpoints](./docs/part2.md)
   - Adds PostgreSQL storage and REST endpoints
 - [Part 3: Scalable Microservice Backend](./docs/part3.md)
-  - Docker, Queue-based job processing, gRPC, observability and async architecture
+  -  Queue-based job processing, gRPC, observability and async architecture
 
 See [progress.md](./docs/progress.md) for development breakdown.
 
@@ -82,11 +82,6 @@ See [progress.md](./docs/progress.md) for development breakdown.
 
 ###  Potential Improvements
 - 🧪 Unit tests and structured logging.
-
-##  Next Steps
-- **[Continue to Part 2 – Persistent Dead Link Monitor](./docs/part2.md)**
-- **[Skip to Part 3 – Scalable Media Service Architecture](./docs/part3.md)**
-- **[`progress.md`](./docs/progress.md) – Feature checklist and roadmap**
 
 ## Example Output
 
@@ -110,3 +105,7 @@ $ .\deadlink-scraper-go.exe https://example.com
 Try scraping this test site:  
 🔗 [`https://scrape-me.dreamsofcode.io`](https://scrape-me.dreamsofcode.io)
 
+##  Next Steps
+- **[Continue to Part 2 – Persistent Dead Link Monitor](./docs/part2.md)**
+- **[Skip to Part 3 – Scalable Media Service Architecture](./docs/part3.md)**
+- **[`progress.md`](./docs/progress.md) – Feature checklist and roadmap**
