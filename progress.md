@@ -12,13 +12,14 @@ Minimal tool to detect dead (4xx/5xx) or timeout links via recursive crawling.
 - [X] ~Parse links with `x/net/html`~
 - [x] ~Filter internal vs external links~
 - [x] ~Filter page navigation links (if href == "#")~
-- [ ] Identify and log on current page
+- [x] Identify and log on current page
   - [x] ~internal links~
-  - [ ] external links
-    - [ ] Dead links (4xx/5xx)
-    - [ ] Timeout / unreachable links
-    - [ ] Redirect chains
-- [ ] Track visited links to avoid loops
+  - [x] external links
+    - [x] Dead links (4xx/5xx)
+    - [x] Timeout / unreachable links
+    - [x] Redirect chains
+- [x] Track visited links to avoid loops
+- [x] Current page stats
 - [ ] Recursively crawl internal links
 - [ ] Identify and log:
   - [ ] Dead links (4xx/5xx)

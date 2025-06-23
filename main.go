@@ -22,14 +22,27 @@ var httpClient = &http.Client{
 	Timeout: RequestTimeout,
 }
 
-func main() {
-	mainURL := "https://no.wikipedia.org/wiki/La_alarmane_g%C3%A5"
+type LinkStats struct {
+	Total        int
+	Internal     int
+	External     int
+	Alive        int
+	Dead         int
+	Skipped      int
+	ByStatusCode map[string]int
+}
 
-	links := make(map[string]linktype.Link)
+func main() {
+	mainURL := "https://scrape-me.dreamsofcode.io/locations"
+
 	visited := set.New()
 	myQueue := queue.New()
+	stats := &LinkStats{ByStatusCode: make(map[string]int)}
 
-	doc := fetchBase(mainURL)
+	doc, err := fetchBase(mainURL)
+	if err != nil {
+		log.Fatalf("Failed to load base page: %v", err)
+	}
 
 	baseURL, err := url.Parse(mainURL)
 	if err != nil {
@@ -37,7 +50,7 @@ func main() {
 	}
 
 	fmt.Printf("Scanning base page: %s\n", mainURL)
-	findLinks(doc, baseURL, links, visited, myQueue)
+	links := findLinks(doc, baseURL)
 
 	fmt.Println("\nStarting validations: ")
 	for _, link := range links {
@@ -46,25 +59,48 @@ func main() {
 		}
 		visited.Add(link)
 
-		validateLink(link)
+		validateLink(link, stats)
 	}
 
 	fmt.Println("\nPages added to queue: ")
 	myQueue.Print()
+
+	printStats(*stats)
 }
 
-func validateLink(link linktype.Link) {
-	if link.Type == linktype.PageLink || link.URL == "" {
-		fmt.Printf("[SKIP]   %s (page link or empty)\n", link.URL)
+func validateLink(link linktype.Link, stats *LinkStats) {
+	stats.Total++
+
+	switch link.Type {
+	case linktype.PageLink:
+		stats.Skipped++
+		fmt.Printf("[SKIP]   %s (Page link)\n", link.URL)
+		return
+	case linktype.InternalLink:
+		stats.Internal++
+	case linktype.ExternalLink:
+		stats.External++
+	default:
+		stats.Skipped++
+		fmt.Printf("[SKIP]   %s (Unknown type)\n", link.URL)
 		return
 	}
 
 	status, err := fetch(link.URL)
 	if err != nil {
+		stats.Dead++
 		fmt.Printf("[DEAD]   %s (%v)\n", link.URL, err)
-	} else if strings.HasPrefix(status, "4") || strings.HasPrefix(status, "5") {
+		return
+	}
+
+	statusCode := strings.Split(status, " ")[0]
+	stats.ByStatusCode[statusCode]++
+
+	if strings.HasPrefix(statusCode, "4") || strings.HasPrefix(statusCode, "5") {
+		stats.Dead++
 		fmt.Printf("[DEAD]   %s (%s)\n", link.URL, status)
 	} else {
+		stats.Alive++
 		fmt.Printf("[ALIVE]  %s (%s)\n", link.URL, status)
 	}
 }
@@ -78,10 +114,10 @@ func fetch(urlStr string) (string, error) {
 	return resp.Status, nil
 }
 
-func fetchBase(urlStr string) *html.Node {
-	resp, err := http.Get(urlStr)
+func fetchBase(urlStr string) (*html.Node, error) {
+	resp, err := httpClient.Get(urlStr)
 	if err != nil {
-		log.Fatalf("Error fetching page: %v", err)
+		return nil, fmt.Errorf("error fetching page: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -89,19 +125,24 @@ func fetchBase(urlStr string) *html.Node {
 
 	doc, err := html.Parse(resp.Body)
 	if err != nil {
-		log.Fatalf("Error parsing html: %v", err)
+		return nil, fmt.Errorf("error parsing html: %w", err)
 	}
 
-	return doc
+	return doc, nil
 }
 
-func findLinks(node *html.Node, baseURL *url.URL, links map[string]linktype.Link, visited *set.Set, q *queue.Queue) {
-	if node.Type == html.ElementNode && node.Data == "a" {
-		for _, attr := range node.Attr {
-			if attr.Key == "href" {
-				link := filterLink(attr.Val, baseURL)
-				fmt.Printf("[FOUND] %s (%v)\n", link.URL, link.Type)
+func findLinks(node *html.Node, baseURL *url.URL) map[string]linktype.Link {
+	links := make(map[string]linktype.Link)
 
+	var traverse func(*html.Node)
+	traverse = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "a" {
+			for _, attr := range n.Attr {
+				if attr.Key != "href" {
+					continue
+				}
+
+				link := filterLink(attr.Val, baseURL)
 				if link.URL == "" {
 					continue
 				}
@@ -110,17 +151,16 @@ func findLinks(node *html.Node, baseURL *url.URL, links map[string]linktype.Link
 				}
 
 				links[link.URL] = link
-
-				if link.Type == linktype.InternalLink {
-					q.Enqueue(link)
-				}
 			}
+		}
+
+		for child := n.FirstChild; child != nil; child = child.NextSibling {
+			traverse(child)
 		}
 	}
 
-	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		findLinks(child, baseURL, links, visited, q)
-	}
+	traverse(node)
+	return links
 }
 
 func filterLink(href string, baseURL *url.URL) linktype.Link {
@@ -155,5 +195,19 @@ func filterLink(href string, baseURL *url.URL) linktype.Link {
 	return linktype.Link{
 		URL:  absURL.String(),
 		Type: linkType,
+	}
+}
+
+func printStats(stats LinkStats) {
+	fmt.Println("\nScan complete:")
+	fmt.Printf("Total:    %d\n", stats.Total)
+	fmt.Printf("Internal: %d\n", stats.Internal)
+	fmt.Printf("External: %d\n", stats.External)
+	fmt.Printf("Alive:    %d\n", stats.Alive)
+	fmt.Printf("Dead:     %d\n", stats.Dead)
+	fmt.Printf("Skipped:  %d\n", stats.Skipped)
+	fmt.Println("Status codes breakdown:")
+	for code, count := range stats.ByStatusCode {
+		fmt.Printf("  %s: %d\n", code, count)
 	}
 }
