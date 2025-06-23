@@ -72,7 +72,7 @@ func main() {
 		currentLink := toCrawl.Dequeue()
 		crawl(client, currentLink, baseDomain, visited, checked, toCrawl, stats)
 	}
-
+	// End
 	printStats(*stats)
 	log.Printf("Links visisted: %v\n", visited.Values())
 }

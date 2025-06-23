@@ -3,16 +3,13 @@
 This part evolves the project into a **production-ready, scalable microservice**.
 
 It focuses on:
-
 - Event-driven architecture
 - Real-time reporting
 - Observability
 - Microservice design patterns
 
 ## Key Enhancements
-
 ### 1. gRPC Service
-
 Expose scanning via gRPC API:
 
 ```proto
@@ -24,9 +21,8 @@ service LinkScanner {
 Supports structured, efficient service-to-service communication.
 
 ### 2. Kafka Integration
-
-* Emit scan results to a Kafka topic: `link-scan-results`
-* Schema:
+- Emit scan results to a Kafka topic: `link-scan-results`
+- Schema:
 
 ```json
 {
@@ -40,31 +36,26 @@ Supports structured, efficient service-to-service communication.
 ```
 
 Tools:
-
-* [`segmentio/kafka-go`](https://github.com/segmentio/kafka-go)
-* Simulate topic with `Redpanda` locally
+- [`segmentio/kafka-go`](https://github.com/segmentio/kafka-go)
+- Simulate topic with `Redpanda` locally
 
 ### 3. Observability (Prometheus-ready)
-
-* Add `promhttp` endpoint on `/metrics`
-* Track:
-
-  * # URLs scanned
-  * Avg scan duration
-  * # dead links per run
+- Add `promhttp` endpoint on `/metrics`
+- Track:
+  - URLs scanned
+  - Avg scan duration
+  - dead links per run
 
 ### 4. Deployment Ready
-
-* Build Docker images
-* Helm chart or Compose for dev
-* Kubernetes-ready manifest
+- Build Docker images
+- Helm chart or Compose for dev
+- Kubernetes-ready manifest
 
 ## How It Relates to TV 2
-
-* Mimics their Go + microservice + Kafka stack
-* Shows experience with system observability, monitoring, and structured APIs
-* Demonstrates how link QA can fit into editorial or media content pipelines
-* Optionally integrate OpenSearch or dashboard-style UI for visual QA
+- Mimics their Go + microservice + Kafka stack
+- Shows experience with system observability, monitoring, and structured APIs
+- Demonstrates how link QA can fit into editorial or media content pipelines
+- Optionally integrate OpenSearch or dashboard-style UI for visual QA
 
 ## 🛠️ Technologies
 
@@ -79,10 +70,11 @@ Tools:
 
 ## Stretch Ideas
 
-* gRPC-to-HTTP gateway (via grpc-gateway)
-* Internal job scheduler
-* Rate limiting via Redis
-* Screenshot capture of broken pages (headless Chrome)
+- gRPC-to-HTTP gateway (via grpc-gateway)
+- Internal job scheduler
+- Rate limiting via Redis
+- Screenshot capture of broken pages (headless Chrome)
 
-Back to [Part 2 – Persistent Backend](./part2.md).  
-Or go to the [README](./README.md).  
+--- 
+- Back to [Part 2 – Persistent Backend](./part2.md).  
+- Or go to the [README](./README.md).  

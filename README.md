@@ -1,56 +1,71 @@
 # Dead Link Web Scraper written in Go
 
-A dead link checker written in Go.
+Deadlink Scraper Go is a fast, concurrent CLI tool that crawls a website to detect and report broken internal and external links.
 
 This project scrapes a given URL, recursively follows internal links, and logs any dead links. Designed as a learning project for exploring Go's core features like concurrency, HTTP/HTML handling, and database interaction.
 
+The second / third part of this project transforms the simple dead link checker into a **scalable, observable microservice**. Something that is suitable for integration with a media monitoring platform or editorial workflow.
+
+## Motivation
+
 > Built to practice Go through real-world scraping, concurrency, data persistence, and microservice architecture.
 
-A real world scenario where this application could be used is for quality control for online newspapers, forums or media houses, where high content quality is essential. 
-One critical component of user experience is ensuring that internal and external links remain functional across the site and app. Dead or broken links impact both SEO and audience trust.
-
-The second / third part of this project transforms the simple dead link checker into a **scalable, observable microservice** – suitable for integration with a media monitoring platform or editorial workflow.
+### Use case
+A real world scenario where this application could be used is for quality control for online newspapers, forums or media houses, where high content quality is essential. A critical component of user experience is ensuring that internal and external links remain functional across the site and app. Dead or broken links impact both SEO and audience trust.
 
 ## Features
-
-- Accepts a starting URL to begin scraping.
+- Accepts a starting URL via CLI to begin scraping and crawling.
 - Recursively follows only internal pages (same base domain).
-- Checks all links found on internal pages, including external ones.
-- Detects dead links:
-  - Links that return 4xx or 5xx HTTP status codes.
-  - Links that timeout.
-- Logs all dead links to the console.
-- Skips already visited URLs to prevent reprocessing.
-- Handles redirects properly (3xx responses).
-- Avoids infinite recursion or loops.
+- Link validation via HEAD / GET.
+  - Both internal and external `<a href="(...)">`-tags.
+- Skips in-page anchors and non-HTTP resources.
+- Keeps track of already visited URLs to avoid loops.
+- Detailed stats: total, internal/external, alive/dead, per-status code
+- HTTP requests
+  - Detects dead links: links that return 4xx or 5xx, or that timeout.
+  - Handles redirects properly (3xx responses).
 - Concurrency with goroutines and channels for faster scanning.
 - Designed to be simple and extensible.
+
+### Crawling Rules
+1. Only HTML pages under the base domain are fetched.
+2. All `<a>`, `<link>`, `<img>`, `<script>`, `<iframe>` URLs are extracted.
+3. Internal links → queued for crawling  
+   External links → validated but not enqueued
+4. Anchor-only links (e.g. `#section`) → skipped as “page links”
+
+## CLI usage
+```bash
+$ go run cmd/main.go https://example.com -concurrency 10 -timeout 5s -depth 200
+```
+
+Usage: deadlink-scraper [flags] <url>  
+
+Flags:
+  -timeout duration     HTTP request timeout (default 10s)
+  -concurrency int      Number of concurrent workers (default 10)
+  -depth int            Max size of total items queued
 
 ## How It Works
 
 - Uses the standard `net/http` package for HTTP requests.
 - Parses HTML using `golang.org/x/net/html`.
-- Maintains a set of visited URLs to avoid rechecking.
-- Crawls and extracts links only from pages within the base domain (internal links).
-- External links found on internal pages are validated, but not followed or scraped.
+- Contains custom types for links, sets, queues
+  - `linktype/lnk.go`, `set/set.go`, `queue/queue.go`  
 
-## Crawling Rules
-
-- Internal pages (same hostname) are recursively followed and scraped.
-- All links (internal or external) found on internal pages are validated.
-- External pages are **not crawled** or scraped — only validated if linked.
+(Insert flow charts)
 
 ## Project Overview
 The project is planned to evolve in **three stages**:
 
-- Part 1: CLI Link Scanner
+- [Part 1: CLI Link Scanner](./docs/part1.md)
   - Basic recursive scanner using `net/http`, `x/net/html`, and concurrency
-- Part 2: Storage and Persistent REST API endpoints
+- [Part 2: Storage and Persistent REST API endpoints](./docs/part2.md)
   - Adds PostgreSQL storage and REST endpoints
-- Part 3: Scalable Microservice Backend
-  - Queue-based job processing, gRPC, observability and async architecture
+- [Part 3: Scalable Microservice Backend](./docs/part3.md)
+  - Docker, Queue-based job processing, gRPC, observability and async architecture
 
-See [`progress.md`](./progress.md) for development breakdown.
+See [progress.md](./docs/progress.md) for development breakdown.
 
 ##  Design Considerations
 
@@ -65,29 +80,31 @@ See [`progress.md`](./progress.md) for development breakdown.
 - **JavaScript-rendered sites:** These require a headless browser (e.g. Playwright for Go). Could be added as an expansion.
 - **Robots.txt** Not yet respected. Use with caution on real websites.
 
-##  Potential Improvements
+###  Potential Improvements
 - 🧪 Unit tests and structured logging.
 
-## Tech Stack
-
-- [Go](https://golang.org/)
-- [`x/net/html`](https://pkg.go.dev/golang.org/x/net/html)
-
 ##  Next Steps
-- **[Continue to Part 2 – Persistent Dead Link Monitor](./part2.md)**
-- **[Skip to Part 3 – Scalable Media Service Architecture](./part3.md)**
-- **[`progress.md`](./progress.md) – Feature checklist and roadmap**
+- **[Continue to Part 2 – Persistent Dead Link Monitor](./docs/part2.md)**
+- **[Skip to Part 3 – Scalable Media Service Architecture](./docs/part3.md)**
+- **[`progress.md`](./docs/progress.md) – Feature checklist and roadmap**
 
-## Screenshots / Example Output
+## Example Output
 
 ```bash
-$ go run cmd/main.go https://example.com
-
-✅ https://example.com/about
-❌ https://example.com/dead-link (404)
-⏳ https://example.com/stuck (timeout)
-
-Scan complete. 13 OK, 2 Dead Links.
+$ .\deadlink-scraper-go.exe https://example.com
+2025/06/23 22:24:53 [ALIVE]  https://example.com (200 OK)
+2025/06/23 22:24:53 [Crawling]: https://example.com
+2025/06/23 22:24:54 [ALIVE]  https://www.iana.org/domains/example (200 OK)
+2025/06/23 22:24:54 Scan complete:
+2025/06/23 22:24:54 Total:    2
+2025/06/23 22:24:54 Internal: 1
+2025/06/23 22:24:54 External: 1
+2025/06/23 22:24:54 Alive:    2
+2025/06/23 22:24:54 Dead:     0
+2025/06/23 22:24:54 Skipped:  0
+2025/06/23 22:24:54 Status codes distribution:
+2025/06/23 22:24:54   200: 2
+2025/06/23 22:24:54 Links visisted: [{https://example.com 0}]
 ```
 
 Try scraping this test site:  

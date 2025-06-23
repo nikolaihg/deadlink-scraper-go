@@ -1,5 +1,4 @@
 # Part 2 – Persistent Dead Link Monitor
-
 In this second part, the project moves from a CLI-only tool to a **minimal persistent backend service**.
 
 It introduces:
@@ -10,9 +9,7 @@ It introduces:
   - Timestamps for audit/history
 
 ## New Features
-
 ### PostgreSQL Storage
-
 Stores each scan job and its results.
 
 ```sql
@@ -34,19 +31,16 @@ CREATE TABLE dead_links (
 Use the `pgx` driver or `database/sql` + `lib/pq`.
 
 ### REST API (using `net/http`)
-
 - `POST /scan` – triggers scan for a given URL
 - `GET /results` – returns dead link history
 - Optional: pagination, filtering by domain
 
 ###  Deployment-Ready
-
-* Add Dockerfile + `docker-compose.yml` with:
-  * Go app
-  * PostgreSQL
+- Add Dockerfile + `docker-compose.yml` with:
+  - Go app
+  - PostgreSQL
 
 ## Sample Flow
-
 ```bash
 curl -X POST localhost:8080/scan \
   -H "Content-Type: application/json" \
@@ -57,17 +51,15 @@ curl localhost:8080/results
 ```
 
 ## Optional Enhancements
-
-* Basic auth or token header for access.
-* UI with Go templates or static React frontend.
-* Retry logic for flaky links.
+- Basic auth or token header for access.
+- UI with Go templates or React frontend.
+- Retry logic for flaky links.
 
 ## Technologies Introduced
+-  `Go` for HTTP + database interaction
+-  `PostgreSQL` for persistent storage
+-  `Docker Compose` for orchestration
 
-* `Go` for HTTP + database interaction
-* `PostgreSQL` for persistent storage
-* `Docker Compose` for orchestration
-* `UUID` + timestamps for good audit practice
-
-Ready to go deeper? Check out [Part 3 – Scalable Media Microservice](./part3.md).  
-Or return to [README](./README.md).  
+---
+- Ready to go deeper? Check out [Part 3 – Scalable Media Microservice](./part3.md).  
+- Or return to [README](./README.md).  
