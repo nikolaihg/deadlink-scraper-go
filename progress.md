@@ -20,11 +20,11 @@ Minimal tool to detect dead (4xx/5xx) or timeout links via recursive crawling.
     - [x] ~Redirect chains~
 - [x] ~Track visited links to avoid loops~
 - [x] ~Current page stats~
-- [ ] Recursively crawl internal links
-- [ ] Identify and log:
-  - [ ] Dead links (4xx/5xx)
-  - [ ] Timeout / unreachable links
-  - [ ] Redirect chains
+- [x] ~Crawl internal links~
+- [x] ~Identify and log:~
+  - [x] ~Dead links (4xx/5xx)~
+  - [x] ~Timeout / unreachable links~
+  - [x] ~Redirect chains~
 
 ### CLI Tooling & UX
 - [x] Simple CLI interface (e.g., `go run .\main.go https://example.com`)
