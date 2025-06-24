@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -27,7 +28,7 @@ type LinkStats struct {
 }
 
 const (
-	RequestTimeout = 10 * time.Second
+	RequestTimeout = 5 * time.Second
 )
 
 func main() {
@@ -93,6 +94,11 @@ func printStats(stats LinkStats) {
 
 func crawl(client *http.Client, link linktype.Link, baseDomain string, visited *set.Set, checked *set.Set, q *queue.Queue, stats *LinkStats) {
 	currentURL := link.URL
+
+	if !checked.Contains(link) {
+		checked.Add(link)
+		validateLink(client, link, stats)
+	}
 	validateLink(client, link, stats)
 	log.Printf("[Crawling]: %s\n", currentURL)
 
@@ -157,6 +163,11 @@ func validateLink(client *http.Client, link linktype.Link, stats *LinkStats) {
 		return
 	}
 
+	if link.URL == "" {
+		stats.Dead++
+		log.Printf("[DEAD]   (empty URL)")
+		return
+	}
 	status, statusCode, err := fetchStatus(client, link.URL)
 	if err != nil {
 		stats.Dead++
@@ -167,42 +178,32 @@ func validateLink(client *http.Client, link linktype.Link, stats *LinkStats) {
 	codeStr := strconv.Itoa(statusCode)
 	stats.ByStatusCode[codeStr]++
 
-	if statusCode >= 400 {
+	switch {
+	case statusCode >= 400:
 		stats.Dead++
 		log.Printf("[DEAD]   %s (%s)", link.URL, status)
-	} else {
+
+	default:
 		stats.Alive++
 		log.Printf("[ALIVE]  %s (%s)", link.URL, status)
 	}
 }
 
-func normalizeURL(base *url.URL, raw string) (string, error) {
-	u, err := base.Parse(raw)
-	if err != nil {
-		return "", err
-	}
-	u.Fragment = ""
-	if u.Scheme != "http" && u.Scheme != "https" {
-		return "", errors.New("unsupported scheme")
-	}
-	return u.String(), nil
-}
-
 func extractLinks(node *html.Node, baseURL *url.URL) map[string]linktype.Link {
 	links := make(map[string]linktype.Link)
+
+	tagAttr := map[string]string{
+		"a":      "href",
+		"link":   "href",
+		"img":    "src",
+		"script": "src",
+		"iframe": "src",
+	}
 
 	var traverse func(*html.Node)
 	traverse = func(n *html.Node) {
 		if n.Type == html.ElementNode {
-			var attr string
-			switch n.Data {
-			case "a", "link":
-				attr = "href"
-			case "img", "script", "iframe":
-				attr = "src"
-			}
-
-			if attr != "" {
+			if attr, ok := tagAttr[n.Data]; ok {
 				for _, a := range n.Attr {
 					if a.Key == attr {
 						link := filterLink(a.Val, baseURL)
@@ -211,11 +212,11 @@ func extractLinks(node *html.Node, baseURL *url.URL) map[string]linktype.Link {
 								links[link.URL] = link
 							}
 						}
+						break // no need to keep looping attrs
 					}
 				}
 			}
 		}
-
 		for child := n.FirstChild; child != nil; child = child.NextSibling {
 			traverse(child)
 		}
@@ -231,11 +232,17 @@ func filterLink(href string, baseURL *url.URL) linktype.Link {
 	}
 
 	// Skip non-HTTP links
-	if strings.HasPrefix(href, "mailto:") ||
-		strings.HasPrefix(href, "tel:") ||
-		strings.HasPrefix(href, "javascript:") ||
-		strings.HasPrefix(href, "ftp:") {
+	switch {
+	case strings.HasPrefix(href, "mailto:"),
+		strings.HasPrefix(href, "tel:"),
+		strings.HasPrefix(href, "javascript:"),
+		strings.HasPrefix(href, "ftp:"):
 		return linktype.Link{}
+	case strings.HasPrefix(href, "#"):
+		return linktype.Link{
+			URL:  baseURL.String() + href,
+			Type: linktype.PageLink,
+		}
 	}
 
 	// Handle page links
@@ -264,6 +271,23 @@ func filterLink(href string, baseURL *url.URL) linktype.Link {
 		URL:  normalized,
 		Type: linkType,
 	}
+}
+
+func normalizeURL(base *url.URL, raw string) (string, error) {
+	u, err := base.Parse(raw)
+	if err != nil {
+		return "", err
+	}
+	u.Fragment = ""
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return "", errors.New("unsupported scheme")
+	}
+	u.Host = strings.ToLower(u.Host)
+	if (u.Scheme == "http" && u.Port() == "80") || (u.Scheme == "https" && u.Port() == "443") {
+		u.Host = u.Hostname()
+	}
+	u.Path = path.Clean((u.Path))
+	return u.String(), nil
 }
 
 func fetchStatus(client *http.Client, url string) (string, int, error) {
