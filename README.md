@@ -47,12 +47,15 @@ Flags:
   -depth int            Max size of total items queued
 
 ## How It Works
-
 - Uses the standard `net/http` package for HTTP requests.
 - Parses HTML using `golang.org/x/net/html`.
 - Contains custom types for links, sets, queues
   - `linktype/lnk.go`, `set/set.go`, `queue/queue.go`  
 
+### Concurrency
+(...)
+
+### Diagrams
 (Insert flow charts)
 
 ## Project Overview
@@ -81,7 +84,10 @@ See [progress.md](./docs/progress.md) for development breakdown.
 - **Robots.txt** Not yet respected. Use with caution on real websites.
 
 ###  Potential Improvements
-- 🧪 Unit tests and structured logging.
+- Unit tests.
+- Structured logging.
+- Benchmarking.
+- Fuzzing
 
 ## Example Output
 
@@ -106,6 +112,7 @@ Try scraping this test site:
 🔗 [`https://scrape-me.dreamsofcode.io`](https://scrape-me.dreamsofcode.io)
 
 ##  Next Steps
+- **[See Part 1 - CLI Dead Link Scanner](./docs/part1.md)**
 - **[Continue to Part 2 – Persistent Dead Link Monitor](./docs/part2.md)**
 - **[Skip to Part 3 – Scalable Media Service Architecture](./docs/part3.md)**
-- **[`progress.md`](./docs/progress.md) – Feature checklist and roadmap**
+- **[progress.md](./docs/progress.md) – Feature checklist and roadmap**

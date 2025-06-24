@@ -93,7 +93,7 @@ func printStats(stats LinkStats) {
 
 func crawl(client *http.Client, link linktype.Link, baseDomain string, visited *set.Set, checked *set.Set, q *queue.Queue, stats *LinkStats) {
 	currentURL := link.URL
-	validateLink(link, stats)
+	validateLink(client, link, stats)
 	log.Printf("[Crawling]: %s\n", currentURL)
 
 	if link.Type != linktype.InternalLink {
@@ -133,13 +133,13 @@ func crawl(client *http.Client, link linktype.Link, baseDomain string, visited *
 		case linktype.ExternalLink:
 			if !checked.Contains(newLink) {
 				checked.Add(newLink)
-				validateLink(newLink, stats)
+				validateLink(client, newLink, stats)
 			}
 		}
 	}
 }
 
-func validateLink(link linktype.Link, stats *LinkStats) {
+func validateLink(client *http.Client, link linktype.Link, stats *LinkStats) {
 	stats.Total++
 
 	switch link.Type {
@@ -157,7 +157,7 @@ func validateLink(link linktype.Link, stats *LinkStats) {
 		return
 	}
 
-	status, statusCode, err := fetchStatus(link.URL)
+	status, statusCode, err := fetchStatus(client, link.URL)
 	if err != nil {
 		stats.Dead++
 		log.Printf("[DEAD]   %s (%v)", link.URL, err)
@@ -266,11 +266,7 @@ func filterLink(href string, baseURL *url.URL) linktype.Link {
 	}
 }
 
-func fetchStatus(url string) (string, int, error) {
-	client := &http.Client{
-		Timeout: 15 * time.Second,
-	}
-
+func fetchStatus(client *http.Client, url string) (string, int, error) {
 	// Try HEAD request first, because it is faster
 	resp, err := client.Head(url)
 	if err == nil {
