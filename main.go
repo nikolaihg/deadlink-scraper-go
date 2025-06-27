@@ -2,17 +2,17 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nikolaihg/deadlink-scraper-go/linktype"
-	"github.com/nikolaihg/deadlink-scraper-go/queue"
 	"github.com/nikolaihg/deadlink-scraper-go/set"
 	"golang.org/x/net/html"
 )
@@ -27,131 +27,144 @@ type LinkStats struct {
 	ByStatusCode map[string]int
 }
 
-const (
-	RequestTimeout = 5 * time.Second
+var (
+	visitedMu sync.Mutex
+	checkedMu sync.Mutex
+	statsMu   sync.Mutex
 )
 
 func main() {
-	if len(os.Args) < 2 {
-		log.Fatalf("Malformed usage, to few or two many arguments!\n\n Usage: go run .\\main.go https://example.com")
-	}
-	startURL := os.Args[1]
+	concurrency := flag.Int("concurrency", 10, "number of concurrent workers")
+	timeout := flag.Duration("timeout", 5*time.Second, "HTTP request timeout (e.g. 5s, 1m)")
+	flag.Parse()
 
-	// Parse starting url
+	if flag.NArg() < 1 {
+		log.Fatalf("Usage: go run . <start-url> [-concurrency N] [-timeout duration]")
+	}
+	startURL := flag.Arg(0)
+
 	u, err := url.Parse(startURL)
 	if err != nil {
-		log.Fatalf("Error parsing base URL: %v", err)
+		log.Fatalf("Error parsing start URL: %v", err)
 	}
 	if u.Scheme == "" {
 		u.Scheme = "https"
 	}
-
 	baseDomain := u.Host
 	startURL = u.String()
 
-	// Create http client
-	client := &http.Client{
-		Timeout: RequestTimeout,
-	}
+	client := &http.Client{Timeout: *timeout}
 
-	// Initialize data structures
-	toCrawl := queue.New()
 	visited := set.New()
 	checked := set.New()
 	stats := &LinkStats{ByStatusCode: make(map[string]int)}
 
-	// Enqueue start link
-	startLink := linktype.Link{
-		URL:  startURL,
-		Type: linktype.InternalLink,
+	// job channel & waitgroups
+	jobs := make(chan linktype.Link)
+	var taskWg sync.WaitGroup   // counts outstanding links to process
+	var workerWg sync.WaitGroup // waits for workers to exit
+
+	// start N workers
+	for i := 0; i < *concurrency; i++ {
+		workerWg.Add(1)
+		go func() {
+			defer workerWg.Done()
+			for link := range jobs {
+				// crawl this link, possibly enqueueing more
+				crawl(client, link, baseDomain, visited, checked, stats, jobs, &taskWg)
+				taskWg.Done()
+			}
+		}()
 	}
-	toCrawl.Enqueue(startLink)
+
+	// seed first job
+	startLink := linktype.Link{URL: startURL, Type: linktype.InternalLink}
+	visitedMu.Lock()
 	visited.Add(startLink)
+	visitedMu.Unlock()
 
-	// Start crawling
-	for !toCrawl.IsEmpty() {
-		currentLink := toCrawl.Dequeue()
-		crawl(client, currentLink, baseDomain, visited, checked, toCrawl, stats)
-	}
-	// End
+	taskWg.Add(1)
+	jobs <- startLink
+
+	// once all tasks are done, close jobs to shut down workers
+	go func() {
+		taskWg.Wait()
+		close(jobs)
+	}()
+
+	// wait for workers to finish
+	workerWg.Wait()
+
+	// done
 	printStats(*stats)
-	log.Printf("Links visisted: %v\n", visited.Values())
+	log.Printf("Links visited: %v\n", visited.Values())
 }
 
-func printStats(stats LinkStats) {
-	log.Println("Scan complete:")
-	log.Printf("Total:    %d\n", stats.Total)
-	log.Printf("Internal: %d\n", stats.Internal)
-	log.Printf("External: %d\n", stats.External)
-	log.Printf("Alive:    %d\n", stats.Alive)
-	log.Printf("Dead:     %d\n", stats.Dead)
-	log.Printf("Skipped:  %d\n", stats.Skipped)
-	log.Println("Status codes distribution:")
-	for code, count := range stats.ByStatusCode {
-		log.Printf("  %s: %d\n", code, count)
-	}
-}
-
-func crawl(client *http.Client, link linktype.Link, baseDomain string, visited *set.Set, checked *set.Set, q *queue.Queue, stats *LinkStats) {
-	currentURL := link.URL
-
+func crawl(client *http.Client, link linktype.Link, baseDomain string, visited, checked *set.Set, stats *LinkStats, jobs chan<- linktype.Link, taskWg *sync.WaitGroup) {
+	checkedMu.Lock()
 	if !checked.Contains(link) {
 		checked.Add(link)
 		validateLink(client, link, stats)
 	}
-	validateLink(client, link, stats)
-	log.Printf("[Crawling]: %s\n", currentURL)
+	checkedMu.Unlock()
 
+	log.Printf("[Crawling]: %s\n", link.URL)
 	if link.Type != linktype.InternalLink {
 		return
 	}
 
-	// Fetch page
-	resp, err := client.Get(currentURL)
+	// fetch page
+	resp, err := client.Get(link.URL)
 	if err != nil {
-		log.Printf("Error fetching %s: %v", currentURL, err)
+		log.Printf("Error fetching %s: %v\n", link.URL, err)
 		return
 	}
 	defer resp.Body.Close()
 
-	// Process only HTML pages
-	contentType := resp.Header.Get("Content-Type")
-	if !strings.Contains(contentType, "text/html") {
+	if !strings.Contains(resp.Header.Get("Content-Type"), "text/html") {
 		return
 	}
 
 	root, err := html.Parse(resp.Body)
 	if err != nil {
-		log.Printf("Error parsing HTML: %v", err)
+		log.Printf("Error parsing HTML: %v\n", err)
 		return
 	}
+
 	baseURL := resp.Request.URL
 	linksMap := extractLinks(root, baseURL)
 
-	// Process all links found on page
 	for _, newLink := range linksMap {
 		switch newLink.Type {
 		case linktype.InternalLink, linktype.PageLink:
-			if !visited.Contains(newLink) {
+			visitedMu.Lock()
+			already := visited.Contains(newLink)
+			if !already {
 				visited.Add(newLink)
-				q.Enqueue(newLink)
+				taskWg.Add(1)   // count the new job
+				jobs <- newLink // send to workers
 			}
+			visitedMu.Unlock()
 		case linktype.ExternalLink:
+			checkedMu.Lock()
 			if !checked.Contains(newLink) {
 				checked.Add(newLink)
 				validateLink(client, newLink, stats)
 			}
+			checkedMu.Unlock()
 		}
 	}
 }
 
 func validateLink(client *http.Client, link linktype.Link, stats *LinkStats) {
-	stats.Total++
+	statsMu.Lock()
+	defer statsMu.Unlock()
 
+	stats.Total++
 	switch link.Type {
 	case linktype.PageLink:
 		stats.Skipped++
-		log.Printf("[SKIP]   %s (Page link)", link.URL)
+		log.Printf("[SKIP]   %s (Page link)\n", link.URL)
 		return
 	case linktype.InternalLink:
 		stats.Internal++
@@ -159,33 +172,28 @@ func validateLink(client *http.Client, link linktype.Link, stats *LinkStats) {
 		stats.External++
 	default:
 		stats.Skipped++
-		log.Printf("[SKIP]   %s (Unknown type)", link.URL)
+		log.Printf("[SKIP]   %s (Unknown type)\n", link.URL)
 		return
 	}
-
 	if link.URL == "" {
 		stats.Dead++
-		log.Printf("[DEAD]   (empty URL)")
+		log.Printf("[DEAD]   (empty URL)\n")
 		return
 	}
-	status, statusCode, err := fetchStatus(client, link.URL)
+	status, code, err := fetchStatus(client, link.URL)
 	if err != nil {
 		stats.Dead++
-		log.Printf("[DEAD]   %s (%v)", link.URL, err)
+		log.Printf("[DEAD]   %s (%v)\n", link.URL, err)
 		return
 	}
-
-	codeStr := strconv.Itoa(statusCode)
+	codeStr := strconv.Itoa(code)
 	stats.ByStatusCode[codeStr]++
-
-	switch {
-	case statusCode >= 400:
+	if code >= 400 {
 		stats.Dead++
-		log.Printf("[DEAD]   %s (%s)", link.URL, status)
-
-	default:
+		log.Printf("[DEAD]   %s (%s)\n", link.URL, status)
+	} else {
 		stats.Alive++
-		log.Printf("[ALIVE]  %s (%s)", link.URL, status)
+		log.Printf("[ALIVE]  %s (%s)\n", link.URL, status)
 	}
 }
 
@@ -305,4 +313,18 @@ func fetchStatus(client *http.Client, url string) (string, int, error) {
 	}
 	defer resp.Body.Close()
 	return resp.Status, resp.StatusCode, nil
+}
+
+func printStats(stats LinkStats) {
+	log.Println("Scan complete:")
+	log.Printf("Total:    %d\n", stats.Total)
+	log.Printf("Internal: %d\n", stats.Internal)
+	log.Printf("External: %d\n", stats.External)
+	log.Printf("Alive:    %d\n", stats.Alive)
+	log.Printf("Dead:     %d\n", stats.Dead)
+	log.Printf("Skipped:  %d\n", stats.Skipped)
+	log.Println("Status codes distribution:")
+	for code, count := range stats.ByStatusCode {
+		log.Printf("  %s: %d\n", code, count)
+	}
 }
