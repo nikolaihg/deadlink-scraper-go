@@ -24,8 +24,9 @@ A real world scenario where this application could be used is for quality contro
 - HTTP requests
   - Detects dead links: links that return 4xx or 5xx, or that timeout.
   - Handles redirects properly (3xx responses).
-- Concurrency with goroutines and channels for faster scanning.
+- Concurrency with a goroutine worker-pool (channels + WaitGroup) for faster, safe parallelism.
 - Designed to be simple and extensible.
+
 
 ### Crawling Rules
 1. Only HTML pages under the base domain are fetched.
@@ -50,10 +51,21 @@ Flags:
 - Uses the standard `net/http` package for HTTP requests.
 - Parses HTML using `golang.org/x/net/html`.
 - Contains custom types for links, sets, queues
-  - `linktype/lnk.go`, `set/set.go`, `queue/queue.go`  
+  - `linktype/lnk.go`, `set/set.go` 
 
 ### Concurrency
-(...)
+1. **Worker-pool**  
+   We spin up N goroutines (workers) that all listen on a single `jobs chan Link`.
+2. **Task tracking**  
+   A `sync.WaitGroup` (“taskWg”) is incremented every time we enqueue a new link and decremented when a worker finishes processing one.  
+   When it drops to zero, we know there’s no more work, so we close the channel.
+3. **Safe shared state**  
+   We protect the shared `visited` and `checked` sets, plus our `LinkStats` counters, with `sync.Mutex` locks to avoid races.
+4. **Lifecycle**  
+   - Main seeds the first URL and adds it to the WaitGroup.  
+   - Workers pull links off `jobs`, call `crawl()`, then signal Done.  
+   - Any newly discovered internal links are `Add`ed to the WaitGroup and sent back into `jobs`.  
+   - Once `taskWg.Wait()` unblocks, we `close(jobs)`, workers exit, and we print stats.
 
 ### Diagrams
 (Insert flow charts)
