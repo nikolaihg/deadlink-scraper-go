@@ -19,6 +19,5 @@
     - Collapse duplicate slashes in paths (e.g. `/foo//bar` $\rightarrow$ `/foo/bar`).
 
 - `crawl` :
-    - Parallelize with worker pool for faster crawling.
     - Add depth limiting or page count limit to avoid infinite crawling.
     - Retry logic for trasient fetch failures (e.g. 5xx)

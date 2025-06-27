@@ -29,12 +29,13 @@ Minimal tool to detect dead (4xx/5xx) or timeout links via recursive crawling.
 ### CLI Tooling & UX
 - [x] Simple CLI interface (e.g., `go run .\main.go https://example.com`)
 - [ ] Option to set crawl depth
-- [ ] Flag for timeout
+- [x] Flag for timeout
+- [x] Flag for concurrency
 
 ### Concurrency & Control
-- [ ] Use goroutines for parallel link checking
-- [ ] Use channels for communication
-- [ ] Shared memory-safe visited link store (`sync.Map`)
+- [x] Use goroutines for parallel link checking
+- [x] Use channels for communication
+- [x] Shared memory-safe visited link store (`sync.Map`)
 - [ ] Limit parallelism (semaphore or buffered channel)
 - [ ] Basic rate limiting between requests
 
