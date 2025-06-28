@@ -50,8 +50,8 @@ Flags:
 ## How It Works
 - Uses the standard `net/http` package for HTTP requests.
 - Parses HTML using `golang.org/x/net/html`.
-- Contains custom types for links, sets, queues
-  - `linktype/lnk.go`, `set/set.go` 
+- Contains custom types for links, sets, stats
+  - `linktype/link.go`, `set/set.go`, `stats/stats.go`
 
 ### Concurrency
 1. **Worker-pool**  
