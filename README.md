@@ -123,6 +123,42 @@ $ .\deadlink-scraper-go.exe https://example.com
 Try scraping this test site:  
 🔗 [`https://scrape-me.dreamsofcode.io`](https://scrape-me.dreamsofcode.io)
 
+
+## Performance Benchmarking
+I also benchmarked the non concurrent version and the concurrent version to compare the two versions of the program. 
+There are binaries located in the `builds/` folder:
+  * `deadlink-scraper-go-nonconcurrent` — Non-concurrent version
+  * `deadlink-scraper-go-concurrent` — Concurrent version
+
+In `tools/benchmarks/`, there is a program (`benchmarks.go`) that benchmarks the two builds and compares them.
+
+The script will:
+* Run each binary 5 times (configurable in the script)
+* Print execution time for each run
+* Print average execution time for both versions
+
+```
+$ go run .\benchmarks.go
+
+Running NonConcurrent version:
+Run 1: 26.8868068s
+Run 2: 29.7986582s
+Run 3: 27.5302179s
+Run 4: 27.1635429s
+Run 5: 27.3745297s
+
+Average time for NonConcurrent: 27.7507511s
+
+Running Concurrent version:
+Run 1: 11.1094938s
+Run 2: 11.4766514s
+Run 3: 11.7514964s 
+Run 4: 11.5983008s
+Run 5: 11.5512609s
+
+Average time for Concurrent: 11.49744066s
+```
+
 ##  Next Steps
 - **[See Part 1 - CLI Dead Link Scanner](./docs/part1.md)**
 - **[Continue to Part 2 – Persistent Dead Link Monitor](./docs/part2.md)**
