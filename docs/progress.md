@@ -2,7 +2,7 @@
 
 Tracks the development progress of the Dead Link Web Scraper project. Divided into 3 main parts to reflect learning and architectural complexity.
 
-## PART 1 – CLI Dead Link Scanner (MVP)
+## PART 1 – CLI Dead Link Scanner
 
 Minimal tool to detect dead (4xx/5xx) or timeout links via recursive crawling.
 

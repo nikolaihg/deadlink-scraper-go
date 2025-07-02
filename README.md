@@ -126,7 +126,7 @@ Try scraping this test site:
 
 ## Performance Benchmarking
 I also benchmarked the non concurrent version and the concurrent version to compare the two versions of the program. 
-There are binaries located in the `builds/` folder:
+There are binaries located in the `tools\benchmarks\builds\` folder:
   * `deadlink-scraper-go-nonconcurrent` — Non-concurrent version
   * `deadlink-scraper-go-concurrent` — Concurrent version
 
